@@ -11,6 +11,7 @@
     <modules>
         <module>mybatis-plus01</module>
         <module>hello-web</module>
+        <module>docs-helloworld</module>
     </modules>
 
     <parent>
