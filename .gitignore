@@ -1,3 +1,10 @@
 .idea/
 target/
 *.iml
+
+# 以下是使用`vscode`打开时产生的文件, 现在天骄的.gitignore中。
+.settings/
+.project
+.classpath
+.factorypath
+
