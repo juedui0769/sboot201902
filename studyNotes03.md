@@ -303,16 +303,197 @@ public class MyConfiguration {
 
 ### 28.2 The “Spring WebFlux Framework”
 
+Spring WebFlux is the new reactive web framework introduced in Spring Framework 5.0. Unlike Spring MVC, it does not require the Servlet API, is fully asynchronous and non-blocking, and implements the Reactive Streams specification through the Reactor project.  ->  SpringWebFlux是SpringFramework5.0中引入的新的反应性Web框架。
+与SpringMVC不同，它不需要ServletAPI，是完全异步和非阻塞的，并且通过反应器项目实现了反应流规范。
 
 
+Spring WebFlux comes in two flavors: functional and annotation-based. The annotation-based one is quite close to the Spring MVC model, as shown in the following example:  ->  SpringWebFlux有两种风格：基于功能的和基于注释的。
+基于注释的模型非常接近Spring MVC模型，如以下示例所示：
+
+```java
+@RestController
+@RequestMapping("/users")
+public class MyRestController {
+
+    @GetMapping("/{user}")
+    public Mono<User> getUser(@PathVariable Long user) {
+        // ...
+    }
+
+    @GetMapping("/{user}/customers")
+    public Flux<Customer> getUserCustomers(@PathVariable Long user) {
+        // ...
+    }
+
+    @DeleteMapping("/{user}")
+    public Mono<User> deleteUser(@PathVariable Long user) {
+        // ...
+    }
+
+}
+```
+
+“WebFlux.fn”, the functional variant, separates the routing configuration from the actual handling of the requests, as shown in the following example:  ->  “WebFlu.fn”是功能变体，它将路由配置与请求的实际处理分开，如以下示例所示：
+
+```java
+@Configuration
+public class RoutingConfiguration {
+
+    @Bean
+    public RouterFunction<ServerResponse> monoRouterFunction(UserHandler userHandler) {
+        return route(GET("/{user}").and(accept(APPLICATION_JSON)), userHandler::getUser)
+                .andRoute(GET("/{user}/customers").and(accept(APPLICATION_JSON)), userHandler::getUserCustomers)
+                .andRoute(DELETE("/{user}").and(accept(APPLICATION_JSON)), userHandler::deleteUser);
+    }
+
+}
+
+@Component
+public class UserHandler {
+
+    public Mono<ServerResponse> getUser(ServerRequest request) {
+        // ...
+    }
+
+    public Mono<ServerResponse> getUserCustomers(ServerRequest request) {
+        // ...
+    }
+
+    public Mono<ServerResponse> deleteUser(ServerRequest request) {
+        // ...
+    }
+}
+```
+
+WebFlux is part of the Spring Framework and detailed information is available in its [reference documentation](https://docs.spring.io/spring/docs/5.0.13.RELEASE/spring-framework-reference/web-reactive.html#webflux-fn).
 
 
+> ...... 很多内容和mvc差不多，这部分文档没仔细阅读，需要时再前来复习。
+
+### 28.3 JAX-RS and Jersey
+
+> 这个文档也没仔细看，之前没接触过，对`Jersey`不了解，用到时再来复习吧。
+
+### 28.4 Embedded Servlet Container Support
+
+Spring Boot includes support for embedded `Tomcat`, `Jetty`, and `Undertow` servers. Most developers use the appropriate “Starter” to obtain a fully configured instance. By default, the embedded server listens for HTTP requests on port 8080.  ->  Spring Boot包括对嵌入式Tomcat、Jetty和Undertwow服务器的支持。
+大多数开发人员使用适当的“Starter”来获得完全配置的实例。
+默认情况下，嵌入式服务器侦听端口8080上的HTTP请求。
+
+### 28.4.1 Servlets, Filters, and listeners
+
+When using an embedded servlet container, you can register servlets, filters, and all the listeners (such as `HttpSessionListener`) from the Servlet spec, either by using Spring beans or by scanning for Servlet components.   ->  使用嵌入式servlet容器时，可以通过使用SpringBeans或扫描servlet组件，从servlet规范中注册servlet、筛选器和所有侦听器(如`HttpSessionListener`)。
+
+### Registering Servlets, Filters, and Listeners as Spring Beans
+
+Any `Servlet`, `Filter`, or servlet `*Listener` instance that is a Spring bean is registered with the embedded container. This can be particularly convenient if you want to refer to a value from your `application.properties` during configuration.  ->  任何作为Springbean的`servlet`、`Filter`或servlet`*Listener`实例都会注册到嵌入的容器中。
+如果要在配置过程中引用`application.properties`中的值，这将特别方便。
+
+By default, if the context contains only a single Servlet, it is mapped to `/`. In the case of multiple servlet beans, the bean name is used as a path prefix. Filters map to `/*`.  ->  默认情况下，如果上下文只包含一个servlet，则将其映射到`/`。
+在多个Servletbean的情况下，bean名称用作路径前缀。
+过滤器映射到`/*`。
+
+If convention-based mapping is not flexible enough, you can use the `ServletRegistrationBean`, `FilterRegistrationBean`, and `ServletListenerRegistrationBean` classes for complete control.  ->  如果基于约定的映射不够灵活，可以使用`ServletRegistrationBean`、`FilterRegistrationBean`和`ServletListenerRegistrationBean`类进行完全控制。
+
+Spring Boot ships with many auto-configurations that may define Filter beans. Here are a few examples of Filters and their respective order (lower order value means higher precedence):  ->  SpringBoot附带了许多可能定义过滤bean的自动配置。
+下面是一些过滤器及其相应顺序的示例(低阶值表示更高的优先级)：
+
+|Servlet Filter|Order|
+|---|---|
+|`OrderedCharacterEncodingFilter`|`Ordered.HIGHEST_PRECEDENCE`|
+|`WebMvcMetricsFilter`|`Ordered.HIGHEST_PRECEDENCE + 1`|
+|`ErrorPageFilter`|`Ordered.HIGHEST_PRECEDENCE + 1`|
+|`HttpTraceFilter`|`Ordered.LOWEST_PRECEDENCE - 10`|
+
+It is usually safe to leave Filter beans unordered.
+
+If a specific order is required, you should avoid configuring a Filter that reads the request body at `Ordered.HIGHEST_PRECEDENCE`, since it might go against the character encoding configuration of your application. If a Servlet filter wraps the request, it should be configured with an order that is less than or equal to `FilterRegistrationBean.REQUEST_WRAPPER_FILTER_MAX_ORDER`.   ->  如果需要特定的顺序，则应避免配置读取`Ordered.HIGHEST_PRECEDENCE`上的请求正文的筛选器，因为它可能与应用程序的字符编码配置背道而驰。
+如果Servlet过滤器封装了请求，则应该使用小于或等于`FilterRegistrationBean.REQUEST_WRAPPER_FILTER_MAX_ORDER`.的顺序对其进行配置。
+
+### 28.4.2 Servlet Context Initialization
+
+Embedded servlet containers do not directly execute the Servlet 3.0+ `javax.servlet.ServletContainerInitializer` interface or Spring’s `org.springframework.web.WebApplicationInitializer` interface. This is an intentional design decision intended to reduce the risk that third party libraries designed to run inside a war may break Spring Boot applications.  ->  嵌入式Servlet容器不直接执行Servlet3.0+`javax.servlet.ServletContainerInitiizer`接口或SpringSpring的`org.springframework.web.WebApplicationInitializer`接口。
+这是一个有意的设计决策，旨在降低设计为在WAR中运行的第三方库可能破坏SpringBoot应用程序的风险。
 
 
+If you need to perform servlet context initialization in a Spring Boot application, you should register a bean that implements the `org.springframework.boot.web.servlet.ServletContextInitializer` interface. The single `onStartup` method provides access to the `ServletContext` and, if necessary, can easily be used as an adapter to an existing `WebApplicationInitializer`.   ->  如果需要在SpringBoot应用程序中执行Servlet上下文初始化，那么应该注册一个实现`org.springframework.boot.web.servlet.ServletContextInitializer`接口的Bean。
+Single`onStarup`方法提供对`ServletContext`的访问，如果需要，可以很容易地将其用作现有`WebApplicationInitiizer`的适配器。
+
+### Scanning for Servlets, Filters, and listeners
+
+When using an embedded container, automatic registration of classes annotated with `@WebServlet`, `@WebFilter`, and `@WebListener` can be enabled by using `@ServletComponentScan`.   ->   使用嵌入式容器时，可以使用@ServletComponentScan启用使用@WebServlet、@WebFilter和@WebListener注释的类的自动注册。
+
+>  `@ServletComponentScan` has no effect in a standalone container, where the container’s built-in discovery mechanisms are used instead.  ->  `@ServletComponentScan`在独立容器中不起作用，而是使用容器的内置发现机制。
+
+### 28.4.3 The ServletWebServerApplicationContext
+
+Under the hood, Spring Boot uses a different type of ApplicationContext for embedded servlet container support. The ServletWebServerApplicationContext is a special type of WebApplicationContext that bootstraps itself by searching for a single ServletWebServerFactory bean. Usually a TomcatServletWebServerFactory, JettyServletWebServerFactory, or UndertowServletWebServerFactory has been auto-configured.  ->  在幕后，SpringBoot使用一种不同类型的ApplicationContext来支持嵌入式servlet容器。
+ServletWebServerApplicationContext是WebApplicationContext的一种特殊类型，它通过搜索单个ServletWebServerFactory bean来引导自身。
+通常情况下，TomcatServletWebServerFactory、JettyServletWebServerFactory或UndertraServletWebServerFactory都是自动配置的。
+
+>  You usually do not need to be aware of these implementation classes. Most applications are auto-configured, and the appropriate ApplicationContext and ServletWebServerFactory are created on your behalf.  ->  您通常不需要知道这些实现类。
+大多数应用程序都是自动配置的，并为您创建了相应的ApplicationContext和ServletWebServerFactory。
+
+### 28.4.4 Customizing Embedded Servlet Containers
+
+> See the `ServerProperties` class for a complete list.
+
+application.properties
+
+```sh
+server.port
+server.address
+server.servlet.session.persistence
+server.servlet.session.timeout
+server.servlet.session.store-dir
+server.servlet.session.cookie.*
+server.error.path
+
+server.tomcat
+server.undertow
+```
+
+### Programmatic Customization
+
+如果需要以编程方式来配置嵌入式容器，可以提供一个`WebServerFactoryCustomizer`接口的实现，如下：
+
+```java
+@Component
+public class CustomizationBean implements WebServerFactoryCustomizer<ConfigurableServletWebServerFactory> {
+
+    @Override
+    public void customize(ConfigurableServletWebServerFactory server) {
+        server.setPort(9000);
+    }
+
+}
+```
+
+`TomcatServletWebServerFactory`, `JettyServletWebServerFactory`, `UndertowServletWebServerFactory` 是 `ConfigurableServletWebServerFactory` 的变体，提供了更具针对性的`setter`方法
 
 
+### Customizing ConfigurableServletWebServerFactory Directly
 
+如果前面的定制技术太有限，您可以自己注册`TomcatServletWebServerFactory`、`JettyServletWebServerFactory`或`UndertraServletWebServerFactory` bean。
 
+```java
+@Bean
+public ConfigurableServletWebServerFactory webServerFactory() {
+    TomcatServletWebServerFactory factory = new TomcatServletWebServerFactory();
+    factory.setPort(9000);
+    factory.setSessionTimeout(10, TimeUnit.MINUTES);
+    factory.addErrorPages(new ErrorPage(HttpStatus.NOT_FOUND, "/notfound.html"));
+    return factory;
+}
+```
+
+### 28.4.5 JSP Limitations
+
+当运行使用嵌入式servlet容器(打包为可执行档案)的SpringBoot应用程序时，JSP支持存在一些限制。
+
+- 对于 tomcat、jetty， war包运行良好，可执行jar不支持jsp
+- Undertow不支持jsp
+- 创建自定义error.jsp页面不会覆盖用于错误处理的默认视图。应改用自定义错误页。
 
 
 
