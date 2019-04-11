@@ -295,14 +295,26 @@ The Spring Framework provides support for transparently adding caching to an app
 
 ......
 
-## 33.1 JMS
+### 33.1 JMS
+
+The Spring Framework provides extensive support for integrating with messaging systems, from simplified use of the JMS API using JmsTemplate to a complete infrastructure to receive messages asynchronously. Spring AMQP provides a similar feature set for the Advanced Message Queuing Protocol. Spring Boot also provides auto-configuration options for RabbitTemplate and RabbitMQ. Spring WebSocket natively includes support for STOMP messaging, and Spring Boot has support for that through starters and a small amount of auto-configuration. Spring Boot also has support for Apache Kafka.  ->  SpringFramework为与消息传递系统的集成提供了广泛的支持，从使用JmsTemplate简化JMSAPI的使用到异步接收消息的完整基础设施。
+SpringAMQP为高级消息队列协议提供了类似的功能集。
+SpringBoot还为RabbitTemplate和RabbitMQ提供了自动配置选项。
+SpringWebSocket本身就包括对STOP消息传递的支持，而SpringBoot则通过启动器和少量的自动配置来支持STOP消息传递。
+Spring Boot还支持Apache Kafka。
 
 
+....
 
 
+### 34. Calling REST Services with RestTemplate
 
+If you need to call remote REST services from your application, you can use the Spring Framework’s RestTemplate class. Since RestTemplate instances often need to be customized before being used, Spring Boot does not provide any single auto-configured RestTemplate bean. It does, however, auto-configure a RestTemplateBuilder, which can be used to create RestTemplate instances when needed. The auto-configured RestTemplateBuilder ensures that sensible HttpMessageConverters are applied to RestTemplate instances.  -> 如果需要从应用程序调用远程REST服务，可以使用SpringFramework的RestTemplate类。
+由于RestTemplate实例通常需要在使用前进行自定义，因此Spring Boot不提供任何自动配置的RestTemplate bean。
+但是，它会自动配置RestTemplateBuilder，该生成器可用于在需要时创建RestTemplate实例。
+自动配置的RestTemplateBuilder确保将合理的HttpMessageConverter应用于RestTemplate实例。
 
-
+### 35. Calling REST Services with WebClient
 
 
 
